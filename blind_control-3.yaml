@@ -1,0 +1,106 @@
+blueprint:
+  name: Blind Control Based on SwitchBot Solar Panel Light and Temperature
+  description: >-
+    This blueprint controls a blind (open or close) when the light level from a SwitchBot solar panel sensor (value 1–10) meets a condition (above or below a threshold) for a specified duration in minutes, and the external temperature meets a condition (above or below a threshold).
+  domain: automation
+  input:
+    blind:
+      name: Blind
+      description: The blind (cover) entity to control (e.g., SwitchBot Blind Tilt).
+      selector:
+        entity:
+          domain: cover
+    light_sensor:
+      name: SwitchBot Light Sensor
+      description: The SwitchBot solar panel sensor providing the light level (value 1–10).
+      selector:
+        entity:
+          domain: sensor
+    light_threshold:
+      name: Light Level Threshold
+      description: The light level threshold (1–10) from the SwitchBot solar panel sensor.
+      default: 6
+      selector:
+        number:
+          min: 1
+          max: 10
+          mode: box
+    light_direction:
+      name: Light Condition Direction
+      description: Whether the light level should be above or below the threshold to trigger.
+      default: above
+      selector:
+        select:
+          options:
+            - above
+            - below
+    duration_minutes:
+      name: Persistence Duration
+      description: How long the light level condition must persist (in minutes).
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: minutes
+          mode: box
+    temp_sensor:
+      name: External Temperature Sensor
+      description: The sensor providing the external temperature.
+      selector:
+        entity:
+          domain: sensor
+          device_class: temperature
+    temp_threshold:
+      name: Temperature Threshold
+      description: The external temperature threshold in °F.
+      default: 77
+      selector:
+        number:
+          min: -58
+          max: 122
+          unit_of_measurement: °F
+          mode: box
+    temp_direction:
+      name: Temperature Condition Direction
+      description: Whether the temperature should be above or below the threshold.
+      default: above
+      selector:
+        select:
+          options:
+            - above
+            - below
+    blind_action:
+      name: Blind Action
+      description: The action to perform on the blind when conditions are met (open or close).
+      default: close
+      selector:
+        select:
+          options:
+            - open
+            - close
+trigger:
+  - platform: template
+    value_template: >-
+      {% set light_value = states('!input light_sensor') | int(0) %}
+      {% if '!input light_direction' == 'above' %}
+        {{ light_value > !input light_threshold }}
+      {% else %}
+        {{ light_value < !input light_threshold }}
+      {% endif %}
+    for:
+      minutes: !input duration_minutes
+condition:
+  - condition: template
+    value_template: >-
+      {% set temp_value = states('!input temp_sensor') | float(0) %}
+      {% if '!input temp_direction' == 'above' %}
+        {{ temp_value > !input temp_threshold }}
+      {% else %}
+        {{ temp_value < !input temp_threshold }}
+      {% endif %}
+action:
+  - service: "cover.{{ !input blind_action }}_cover"
+    target:
+      entity_id: !input blind
+mode: single
